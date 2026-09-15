@@ -1,0 +1,1094 @@
+# UNIFY-X — End User App Specification
+
+## 1. What the app actually does
+
+The app is the **end-user interface for the UNIFY-X transport monitoring system**.
+
+The user should NOT need to understand:
+
+* MQ135
+* MQ137
+* BME688
+* machine-learning algorithms
+* feature extraction
+* model training
+* Raspberry Pi processing
+
+The Raspberry Pi handles all of that.
+
+The app's job is to answer five simple questions:
+
+> **What am I transporting?**
+> **Where is it?**
+> **How is the shipment doing right now?**
+> **Is the product still good?**
+> **Has anything gone wrong during transportation?**
+
+So the app should be designed around **shipments**, not around sensors.
+
+---
+
+# 2. Overall architecture
+
+The system should look like:
+
+```text
+                 ┌─────────────────────┐
+                 │     SENSOR NODE 1   │
+                 │                     │
+                 │ Temp / Humidity      │
+                 │ MQ135 / MQ137       │
+                 │ DS18B20 / LDR       │
+                 └──────────┬──────────┘
+                            │
+                            │
+                 ┌──────────▼──────────┐
+                 │     SENSOR NODE 2   │
+                 │                     │
+                 │ BME680 / BME688     │
+                 │ Temp / Humidity      │
+                 │ Gas / LDR           │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │    RASPBERRY PI     │
+                 │                     │
+                 │ Data Fusion         │
+                 │ Feature Extraction  │
+                 │ ML Models           │
+                 │ Decision Engine     │
+                 │ Database            │
+                 │ API                 │
+                 └──────────┬──────────┘
+                            │
+                       Wi-Fi / Tailscale
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │      MOBILE APP     │
+                 │                     │
+                 │ Dashboard           │
+                 │ Shipments           │
+                 │ Live Monitoring     │
+                 │ Alerts              │
+                 │ History             │
+                 └─────────────────────┘
+```
+
+The existing Pi code already has the basic sensor-to-server architecture through an HTTP `/data` endpoint and processes incoming JSON packets. 
+
+---
+
+# 3. Don't make the app "sensor-centric"
+
+This is probably the biggest design instruction.
+
+### ❌ Don't make the home screen:
+
+```text
+MQ135
+MQ137
+BME688
+Temperature
+Humidity
+LDR
+```
+
+That's an engineering dashboard.
+
+### ✅ Make it:
+
+```text
+ACTIVE SHIPMENT
+
+Fresh Fish
+Shipment #UX-1024
+
+🟢 GOOD
+
+92% Confidence
+
+Temperature: 4.8°C
+Humidity: 71%
+
+Transit: 03h 42m
+Current Location: Tumakuru
+
+0 Critical Events
+```
+
+The sensor information can exist deeper inside the app.
+
+---
+
+# 4. Main navigation
+
+I recommend **4 bottom navigation tabs**:
+
+```text
+┌─────────────────────────────────────┐
+│                                     │
+│             APP SCREEN              │
+│                                     │
+├─────────────────────────────────────┤
+│  Home   Shipments   Alerts   More   │
+└─────────────────────────────────────┘
+```
+
+### Home
+
+Overall operational status.
+
+### Shipments
+
+All active and previous shipments.
+
+### Alerts
+
+Problems requiring attention.
+
+### More
+
+Detailed monitoring, system status, settings, etc.
+
+This is better than having six or seven bottom tabs.
+
+---
+
+# 5. HOME SCREEN
+
+This is the most important screen.
+
+When the user opens the app, they should immediately see the current shipment condition.
+
+### Header
+
+```text
+UNIFY-X
+
+Good morning, Nish
+
+● System Online
+```
+
+Then:
+
+```text
+ACTIVE SHIPMENT
+────────────────────────
+
+🐟 Fresh Fish
+
+Shipment #UX-1024
+
+Mangalore → Bengaluru
+```
+
+Then the **main decision card**:
+
+```text
+┌─────────────────────────────┐
+│                             │
+│            😊               │
+│                             │
+│           GOOD              │
+│                             │
+│      92% Confidence         │
+│                             │
+│   Product condition normal  │
+│                             │
+└─────────────────────────────┘
+```
+
+If bad:
+
+```text
+┌─────────────────────────────┐
+│            😟               │
+│                             │
+│            BAD              │
+│                             │
+│      94% Confidence         │
+│                             │
+│   Spoilage indicators high  │
+└─────────────────────────────┘
+```
+
+If models disagree:
+
+```text
+┌─────────────────────────────┐
+│            😐               │
+│                             │
+│         UNCERTAIN           │
+│                             │
+│      56% Confidence         │
+│                             │
+│       Re-scan advised       │
+└─────────────────────────────┘
+```
+
+### Important:
+
+**GOOD / BAD / UNCERTAIN must be the biggest thing on the screen.**
+
+---
+
+# 6. Shipment condition summary
+
+Below the decision:
+
+```text
+CURRENT CONDITIONS
+
+🌡 Temperature
+4.8°C
+Normal
+
+💧 Humidity
+71%
+Normal
+
+🧪 Gas indicators
+Normal
+
+🚚 Transport
+03h 42m
+
+⚠ Events
+0
+```
+
+Use status indicators:
+
+```text
+🟢 Normal
+🟡 Attention
+🔴 Critical
+```
+
+Don't expose raw numbers unless useful.
+
+---
+
+# 7. Live shipment tracking
+
+The user should be able to click:
+
+**View Live Shipment**
+
+and enter:
+
+# LIVE MONITOR
+
+```text
+● LIVE
+
+Shipment #UX-1024
+
+🐟 Fresh Fish
+
+Mangalore
+     │
+     │
+     ├────────────── 🚚
+     │
+     │
+Tumakuru
+     │
+     │
+Bengaluru
+```
+
+If GPS isn't implemented yet, don't fake a map.
+
+Instead show:
+
+```text
+Current Node
+PRECISION_NODE_01
+
+Connected to Raspberry Pi
+
+Last update
+10:42:31 AM
+```
+
+Later GPS can simply be plugged into this screen.
+
+---
+
+# 8. Live sensor screen
+
+Inside the shipment:
+
+```text
+LIVE CONDITIONS
+```
+
+Then cards:
+
+```text
+Temperature
+4.8°C
+──────────────
+Normal
+
+Humidity
+71%
+──────────────
+Normal
+
+Gas
+Normal
+──────────────
+
+Light
+62%
+──────────────
+Normal
+```
+
+Then graphs.
+
+### Temperature graph
+
+```text
+TEMPERATURE — LAST 30 MIN
+
+6°C ┤
+5°C ┤    ╭──╮
+4°C ┤────╯  ╰──────
+3°C ┤
+    └────────────────
+```
+
+### Gas trend
+
+```text
+GAS TREND
+
+Normal ─────────────╮
+                    ╰──╮
+                       ╰─── ↑
+```
+
+The important thing isn't just the current value.
+
+It's:
+
+> **Is the condition getting better or worse?**
+
+---
+
+# 9. Transport timeline
+
+This is where you make the project strongly **logistics-oriented**.
+
+Create:
+
+# TRANSPORT TIMELINE
+
+```text
+06:20 AM
+🚚 Shipment Started
+
+07:14 AM
+🟢 Conditions Normal
+
+08:31 AM
+🟡 Temperature Excursion
+Temperature reached 8.2°C
+
+08:48 AM
+🟢 Temperature Normalized
+
+09:32 AM
+🟢 Gas Levels Normal
+
+10:42 AM
+🟢 Current Status: GOOD
+```
+
+This is much more valuable than simply displaying sensor values.
+
+---
+
+# 10. Temperature excursion
+
+Give this its own card:
+
+```text
+COLD-CHAIN STATUS
+
+Temperature excursions
+1
+
+Total duration
+17 min
+
+Maximum temperature
+8.2°C
+
+Current
+4.8°C
+
+Status
+🟡 Attention
+```
+
+Then connect this information to the ML result:
+
+```text
+Temperature excursion
+        ↓
+17 minutes
+        ↓
+ML risk contribution
+        ↓
+Current spoilage risk
+```
+
+This is the piece that connects **transport → logistics → spoilage detection**.
+
+---
+
+# 11. Spoilage risk
+
+Instead of only:
+
+> GOOD
+
+show:
+
+```text
+SPOILAGE RISK
+
+        8%
+
+████░░░░░░░░░░░
+
+LOW RISK
+
+Based on:
+• Environmental conditions
+• Gas trends
+• Temperature history
+• Transport exposure
+```
+
+If you don't have a scientifically validated probability model, call it **"Model Risk Score"** or **"Estimated Risk"**, not a medically/scientifically definitive probability.
+
+---
+
+# 12. Model explanation
+
+The normal user doesn't need this.
+
+But give an expandable section:
+
+### "Why did UNIFY-X make this decision?"
+
+```text
+WHY THIS DECISION?
+
+✓ Temperature remained within expected range
+✓ Humidity remained stable
+✓ Gas indicators are normal
+✓ No significant abnormal trend detected
+✓ Models reached strong consensus
+
+Model Consensus
+
+Random Forest       94% GOOD
+Extra Trees         91% GOOD
+Gradient Boosting   89% GOOD
+
+Overall
+🟢 GOOD
+```
+
+This gives you **explainability** without cluttering the main screen.
+
+---
+
+# 13. Shipments screen
+
+The user should see:
+
+```text
+SHIPMENTS
+
+ACTIVE
+
+🐟 Fish
+#UX-1024
+Mangalore → Bengaluru
+
+🟢 GOOD
+92% confidence
+
+
+COMPLETED
+
+🍎 Apples
+#UX-1023
+Mysuru → Bengaluru
+
+🟢 GOOD
+
+🥬 Vegetables
+#UX-1022
+Hassan → Bengaluru
+
+🔴 BAD
+```
+
+Each shipment opens its complete timeline.
+
+---
+
+# 14. Shipment details
+
+```text
+SHIPMENT #UX-1024
+
+Product
+Fresh Fish
+
+RFID
+FISH001
+
+Origin
+Mangalore
+
+Destination
+Bengaluru
+
+Started
+06:20 AM
+
+Duration
+04h 22m
+
+──────────────────
+
+CURRENT STATUS
+
+😊 GOOD
+
+92% confidence
+
+──────────────────
+
+TRANSPORT
+
+Temperature excursions
+1
+
+Total excursion time
+17 min
+
+Critical events
+0
+
+──────────────────
+
+SENSOR STATUS
+
+Node 01     ● Online
+Node 02     ● Online
+Raspberry Pi ● Online
+```
+
+---
+
+# 15. Alerts screen
+
+The app shouldn't just be a dashboard.
+
+It should be **action-oriented**.
+
+```text
+ALERTS
+
+🔴 CRITICAL
+
+Shipment #UX-1021
+Product condition classified as BAD
+
+10:21 AM
+
+
+🟡 ATTENTION
+
+Shipment #UX-1024
+Temperature exceeded configured range
+
+08:31 AM
+
+
+🟢 RESOLVED
+
+Shipment #UX-1020
+Temperature returned to normal
+```
+
+Clicking an alert takes the user directly to the relevant shipment.
+
+---
+
+# 16. Don't spam notifications
+
+Only send notifications for:
+
+### Critical
+
+* BAD classification
+* Sensor failure
+* Raspberry Pi offline
+* prolonged temperature excursion
+
+### Warning
+
+* unusual gas trend
+* temperature approaching threshold
+* model uncertainty
+
+Don't notify the user every time temperature changes by 0.1°C.
+
+---
+
+# 17. Raspberry Pi status
+
+Put a small status indicator everywhere:
+
+```text
+● Connected
+```
+
+Clicking it:
+
+```text
+SYSTEM STATUS
+
+Raspberry Pi
+🟢 Online
+
+Node 01
+🟢 Online
+
+Node 02
+🟢 Online
+
+Last synchronization
+10:42:31
+
+API
+🟢 Operational
+
+ML Engine
+🟢 Ready
+```
+
+If something fails:
+
+```text
+🔴 Node 02 Offline
+
+Last seen:
+10:37 AM
+```
+
+---
+
+# 18. The app should communicate with APIs
+
+Tell your friend:
+
+**Do NOT access the Pi's CSV files directly.**
+
+The Pi should expose APIs.
+
+Suggested API structure:
+
+```text
+GET  /api/system/status
+
+GET  /api/shipments
+GET  /api/shipments/{id}
+
+GET  /api/shipments/{id}/live
+GET  /api/shipments/{id}/history
+GET  /api/shipments/{id}/analysis
+
+GET  /api/alerts
+
+POST /api/shipments/{id}/start
+POST /api/shipments/{id}/stop
+```
+
+For live data:
+
+```text
+WebSocket
+/ws/live/{shipment_id}
+```
+
+Your current Pi already runs an HTTP server, so this is a natural evolution of the existing architecture. 
+
+---
+
+# 19. JSON contract
+
+This is something you should establish **before your friend starts coding**.
+
+For example:
+
+```json
+{
+  "shipment_id": "UX-1024",
+  "product": {
+    "name": "Fish",
+    "rfid": "FISH001"
+  },
+  "transport": {
+    "origin": "Mangalore",
+    "destination": "Bengaluru",
+    "elapsed_seconds": 15720
+  },
+  "status": {
+    "classification": "GOOD",
+    "confidence": 0.92,
+    "risk_score": 0.08
+  },
+  "sensors": {
+    "temperature": 4.8,
+    "humidity": 71.2,
+    "mq135": 1200,
+    "mq137": 830,
+    "bme_gas": 18200,
+    "light": 62
+  },
+  "transport_events": {
+    "temperature_excursions": 1,
+    "excursion_duration_seconds": 1020,
+    "max_temperature": 8.2
+  },
+  "nodes": {
+    "spoilage_node": "online",
+    "precision_node": "online"
+  },
+  "timestamp": "2026-09-10T10:42:31"
+}
+```
+
+Your friend builds the app around this contract.
+
+Then **you can change the Python/ML implementation without breaking the UI**.
+
+---
+
+# 20. What happens when a detection is performed
+
+The complete user flow should be:
+
+```text
+Shipment arrives
+       ↓
+RFID identified
+       ↓
+Nodes start collecting data
+       ↓
+Pi receives sensor data
+       ↓
+Pi synchronizes both nodes
+       ↓
+Feature extraction
+       ↓
+ML models
+       ↓
+Decision engine
+       ↓
+GOOD / BAD / UNCERTAIN
+       ↓
+Result stored
+       ↓
+App receives update
+       ↓
+User sees result
+       ↓
+Transport history updated
+```
+
+The end user should see this as:
+
+```text
+Scanning...
+     ↓
+Analyzing...
+     ↓
+😊 GOOD
+92% confidence
+```
+
+Not all the backend complexity.
+
+---
+
+# 21. The second node's display and app should agree
+
+This is a nice product detail.
+
+If the Pi decides:
+
+```text
+GOOD
+```
+
+Node 2:
+
+```text
+😊
+FRESH
+```
+
+App:
+
+```text
+😊 GOOD
+92%
+```
+
+If Pi decides:
+
+```text
+BAD
+```
+
+Node 2:
+
+```text
+😟
+BAD
+```
+
+App:
+
+```text
+🔴 BAD
+94%
+```
+
+If:
+
+```text
+UNCERTAIN
+```
+
+Node 2:
+
+```text
+😐
+CHECK
+```
+
+App:
+
+```text
+🟡 UNCERTAIN
+Re-scan recommended
+```
+
+**There should be only ONE decision authority: the Raspberry Pi.**
+
+The node and app simply display the Pi's decision.
+
+---
+
+# 22. MVP vs future features
+
+Tell your friend **not to build everything now**.
+
+### Build NOW
+
+```text
+✓ Home
+✓ Active shipment
+✓ GOOD/BAD/UNCERTAIN
+✓ Confidence
+✓ Live sensor values
+✓ Shipment history
+✓ Transport duration
+✓ Temperature excursion
+✓ Alerts
+✓ Pi/node connection status
+```
+
+### Build AFTER MVP
+
+```text
+○ GPS map
+○ Route tracking
+○ IMU/shock events
+○ Advanced analytics
+○ PDF reports
+○ Multi-vehicle management
+○ Cloud synchronization
+○ User accounts
+○ Fleet dashboard
+```
+
+---
+
+# 23. Design language
+
+For the UI, I'd go with:
+
+### Dark + clean industrial
+
+Not a generic fintech app.
+
+Something like:
+
+```text
+Background       #0B1220
+Cards             #111827
+Primary text      #F8FAFC
+Secondary text    #94A3B8
+GOOD              Green
+WARNING           Amber
+BAD               Red
+```
+
+But don't overdo neon colors.
+
+The **status color should communicate meaning**.
+
+Use:
+
+🟢 Good
+🟡 Attention
+🔴 Critical
+⚪ Offline/unknown
+
+---
+
+# 24. Most important UX principle
+
+Your friend should design every screen around:
+
+> **What action does the user need to take?**
+
+For example:
+
+### BAD shipment
+
+Don't just say:
+
+```text
+BAD
+94%
+```
+
+Say:
+
+```text
+🔴 BAD
+
+Shipment #UX-1024
+
+Spoilage indicators detected.
+
+Temperature excursion:
+32 min
+
+Gas trend:
+Increasing
+
+Recommended action:
+
+[ Inspect Shipment ]
+```
+
+That makes the app useful to a logistics operator.
+
+---
+
+# 25. The final app hierarchy
+
+I'd give him this exact sitemap:
+
+```text
+UNIFY-X
+│
+├── HOME
+│   ├── Active Shipment
+│   ├── Current Decision
+│   ├── Risk Score
+│   ├── Transport Status
+│   └── System Status
+│
+├── SHIPMENTS
+│   ├── Active
+│   ├── Completed
+│   └── Shipment Details
+│       ├── Overview
+│       ├── Live Monitoring
+│       ├── Transport Timeline
+│       ├── Sensor Data
+│       └── ML Analysis
+│
+├── ALERTS
+│   ├── Critical
+│   ├── Warnings
+│   └── Resolved
+│
+└── MORE
+    ├── System Status
+    ├── Node Status
+    ├── Settings
+    └── About UNIFY-X
+```
+
+---
+
+# Message you can directly send your friend
+
+> **UNIFY-X APP — DEVELOPMENT BRIEF**
+>
+> The app is the end-user layer of a Raspberry-Pi-based edge-AI transport monitoring system. The Raspberry Pi is the central intelligence/server. It receives data from two sensor nodes, performs data fusion, feature extraction, ML inference and the final GOOD/BAD/UNCERTAIN decision.
+>
+> The app must NOT perform ML computation or directly access sensor CSV files. It communicates with the Raspberry Pi through REST APIs and WebSocket for real-time updates.
+>
+> The app should be **shipment-centric, not sensor-centric**.
+>
+> **Primary user questions:**
+>
+> 1. What shipment am I monitoring?
+> 2. Where is it / what is its transport status?
+> 3. What is its current condition?
+> 4. Is it GOOD, BAD or UNCERTAIN?
+> 5. Why did the system make that decision?
+> 6. Has anything abnormal happened during transportation?
+>
+> **Main navigation:** Home / Shipments / Alerts / More.
+>
+> **Home:** Active shipment, product, origin/destination, transport duration, current GOOD/BAD/UNCERTAIN decision, confidence/risk score, sensor summary, temperature excursion summary and system connectivity.
+>
+> **Shipment Details:** Overview, live sensor monitoring, temperature/gas trends, transport timeline, abnormal events, model consensus and final decision.
+>
+> **Alerts:** BAD product classifications, temperature excursions, unusual gas trends, sensor failures and Raspberry Pi/node connectivity problems.
+>
+> **Backend API:** REST for shipment/history/status data and WebSocket for live sensor/status updates.
+>
+> **Important:** Raspberry Pi is the single source of truth for the final product classification. Node displays and mobile app only reflect the Pi's decision.
+>
+> **Core states:** CONNECTED, OFFLINE, SCANNING, PROCESSING, GOOD, BAD, UNCERTAIN, SENSOR ERROR, MODEL NOT READY.
+>
+> The design should feel like an **industrial cold-chain/logistics monitoring application**, not an IoT sensor demo. The most important information on the Home screen is the current shipment and its final product condition.
+
+### One final recommendation
+
+**Before your friend writes the UI, you and the ML/backend person should freeze the JSON/API contract first.** That's the interface between your two teams. Once that contract is stable, your friend can build the entire UI using mock JSON even while you're still integrating BME688, MQ sensors, the second node, and the ML models. That will let both sides work **in parallel during your six-hour window** instead of waiting for each other.

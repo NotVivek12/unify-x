@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-good: #059669; /* Emerald 600 for better contrast on light */
+  --color-brand-attention: #d97706; /* Amber 600 */
+  --color-brand-bad: #e11d48; /* Rose 600 */
+  --color-brand-neutral: #9ca3af;
+  
+  --color-background: #faf9f6; /* Beautiful warm off-white / alabaster */
+  --color-foreground: #1c1917;
+  --color-surface: rgba(255, 255, 255, 0.6);
+  --color-surface-hover: rgba(255, 255, 255, 0.9);
+  --color-border: rgba(231, 229, 228, 0.6); /* stone-200 with opacity */
+  --color-border-strong: rgba(214, 211, 209, 0.8);
+  --color-muted: #78716c;
+  
+  --font-sans: var(--font-inter), Arial, sans-serif;
+}
+
+@utility premium-gradient {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 1) 0%, rgba(250, 248, 245, 0.6) 100%);
+  box-shadow: 
+    0 10px 40px -10px rgba(0, 0, 0, 0.04),
+    0 4px 6px -2px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--color-border);
+}
+
+@utility glass-panel {
+  background: var(--color-surface);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--color-border);
+  box-shadow: 
+    0 4px 20px -2px rgba(0, 0, 0, 0.03),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility glass-panel-hover {
+  &:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-strong);
+    box-shadow: 
+      0 8px 30px -4px rgba(0, 0, 0, 0.06),
+      inset 0 1px 1px rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+  }
+}
+
+@utility status-glow-good {
+  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.15) 0%, transparent 70%), var(--color-surface);
+}
+
+@utility status-glow-attention {
+  background: radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.15) 0%, transparent 70%), var(--color-surface);
+}
+
+@utility status-glow-bad {
+  background: radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.15) 0%, transparent 70%), var(--color-surface);
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 6px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted);
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  /* Premium Mesh/Aurora Background */
+  background-image: 
+    radial-gradient(ellipse at 15% 0%, rgba(255, 237, 213, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(224, 231, 255, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.8) 0%, transparent 100%);
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+::selection {
+  background-color: rgba(28, 25, 23, 0.1);
+}
