@@ -1871,7 +1871,6 @@ For major architectural changes, please discuss the change before implementation
 
 This project is currently intended for research, experimentation, and hackathon development.
 
-Add the project's chosen license here once finalized.
 
 ---
 
